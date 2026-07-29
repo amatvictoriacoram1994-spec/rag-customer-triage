@@ -1,0 +1,5 @@
+{
+  "source": "test_webhook",
+  "customer_query": "Can I return my order after 35 days?",
+  "order_id": "NG-1002"
+}

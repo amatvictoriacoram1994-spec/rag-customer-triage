@@ -1,0 +1,5 @@
+{
+  "source": "test_webhook",
+  "customer_query": "My backpack zip stopped working five days after delivery. Can I get a replacement?",
+  "order_id": "NG-1001"
+}

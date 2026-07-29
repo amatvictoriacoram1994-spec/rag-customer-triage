@@ -1,0 +1,5 @@
+{
+  "source": "test_webhook",
+  "customer_query": "I received a gift but I do not have the gift receipt or order number. Can I get cash instead?",
+  "order_id": "NG-1003"
+}

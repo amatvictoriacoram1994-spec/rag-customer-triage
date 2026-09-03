@@ -2,7 +2,15 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { PayloadValidationError, runPayload } from "./triagePayload.js";
+import {
+  CaseIdentityConflictError,
+  CaseNotFoundError,
+  CustomerIdentityConflictError,
+  PayloadValidationError,
+  type ManagedPayloadResult,
+  type PayloadRequestContext,
+  runPayload,
+} from "./triagePayload.js";
 
 const MAX_BODY_BYTES = 1_000_000;
 
@@ -40,7 +48,9 @@ async function readBody(request: IncomingMessage): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-export function createTriageServer(runner: typeof runPayload = runPayload) {
+type TriageRunner = (payload: unknown, context: PayloadRequestContext) => Promise<ManagedPayloadResult>;
+
+export function createTriageServer(runner: TriageRunner = runPayload) {
   return createServer(async (request, response) => {
     const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
 
@@ -66,7 +76,31 @@ export function createTriageServer(runner: typeof runPayload = runPayload) {
     try {
       const body = await readBody(request);
       const payload = JSON.parse(body) as unknown;
-      const result = await runner(payload);
+      const result = await runner(payload, { requestId });
+      if ("case_resolution" in result && result.case_resolution === "needs_case_confirmation") {
+        sendJson(response, 200, {
+          request_id: requestId,
+          status: "needs_case_confirmation",
+          case: result.case,
+        }, requestId);
+        logLifecycle("request_completed", {
+          ...lifecycle,
+          duration_ms: Math.round(performance.now() - startedAt),
+        });
+        return;
+      }
+      if ("case_resolution" in result && result.case_resolution === "needs_case_selection") {
+        sendJson(response, 200, {
+          request_id: requestId,
+          status: "needs_case_selection",
+          cases: result.cases,
+        }, requestId);
+        logLifecycle("request_completed", {
+          ...lifecycle,
+          duration_ms: Math.round(performance.now() - startedAt),
+        });
+        return;
+      }
       sendJson(response, 200, {
         request_id: requestId,
         status: "success",
@@ -74,11 +108,16 @@ export function createTriageServer(runner: typeof runPayload = runPayload) {
         confidence: result.confidence,
         customer_response_draft: result.customer_response_draft,
         escalation_reason: result.escalation_reason ?? null,
+        information_required: result.information_required ?? false,
+        action_status: result.action_status ?? "unclear",
         order: {
           order_id: result.order_id,
           customer_name: result.order_context?.customer_name ?? null,
         },
         citations: result.cited_sources,
+        case_reference: "case_reference" in result ? result.case_reference : null,
+        case_status: "case_status" in result ? result.case_status : null,
+        decision_due_at: "decision_due_at" in result ? result.decision_due_at : null,
         logged: true,
         raw_result: result,
       }, requestId);
@@ -91,6 +130,12 @@ export function createTriageServer(runner: typeof runPayload = runPayload) {
       let message = "Triage failed.";
       if (error instanceof SyntaxError || error instanceof PayloadValidationError) {
         statusCode = 400;
+        message = error.message;
+      } else if (error instanceof CaseNotFoundError) {
+        statusCode = 404;
+        message = error.message;
+      } else if (error instanceof CaseIdentityConflictError || error instanceof CustomerIdentityConflictError) {
+        statusCode = 409;
         message = error.message;
       } else if (error instanceof BodyTooLargeError) {
         statusCode = 413;

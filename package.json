@@ -13,7 +13,11 @@
     "dev:api": "tsx src/server.ts",
     "start": "tsx src/server.ts",
     "test:api": "tsx src/testApi.ts",
-    "test:server": "tsx --test src/server.test.ts",
+    "build": "tsc",
+    "test": "npm run build && node --test dist/server.test.js dist/caseManagement.test.js",
+    "test:cases": "npm run build && node --test dist/caseManagement.test.js",
+    "test:cases:live": "npm run build && node dist/testCasesLive.js",
+    "test:server": "npm run build && node --test dist/server.test.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

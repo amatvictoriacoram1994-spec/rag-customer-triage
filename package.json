@@ -13,6 +13,7 @@
     "dev:api": "tsx src/server.ts",
     "start": "tsx src/server.ts",
     "test:api": "tsx src/testApi.ts",
+    "test:server": "tsx --test src/server.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -3,7 +3,13 @@ import { createClient } from "@supabase/supabase-js";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { type PolicyMatch, retrievePolicies } from "./retrievePolicies.js";
-import { findPolicyVersionConflicts, type PolicyVersionConflict } from "./evidenceChecks.js";
+import {
+  assertDecisionMatchesEvidenceConstraint,
+  findPolicyVersionConflicts,
+  forcedDecisionForPolicyVersionConflicts,
+  type EvidenceConstraintDecision,
+  type PolicyVersionConflict,
+} from "./evidenceChecks.js";
 
 type DecisionType = "answer" | "escalate" | "contradiction";
 type Confidence = "high" | "medium" | "low";
@@ -174,7 +180,7 @@ async function askClaude(
   matches: PolicyMatch[],
   orderId?: string,
   orderContext?: OrderContext | null,
-  forcedDecisionType?: DecisionType,
+  forcedDecisionType?: EvidenceConstraintDecision,
   policyVersionConflicts: PolicyVersionConflict[] = [],
 ): Promise<TriageDecision> {
   const orderEvidence = orderId
@@ -260,6 +266,7 @@ Cite only sources supplied in the retrieved evidence, copying their source field
 
   const toolUse = body.content?.find((block) => block.type === "tool_use" && block.name === "submit_triage_decision");
   if (!toolUse || !isDecision(toolUse.input)) throw new Error("Claude returned an invalid triage decision");
+  assertDecisionMatchesEvidenceConstraint(toolUse.input.decision_type, forcedDecisionType);
   const decision = ensureEscalationReason(toolUse.input);
   validateCitations(decision, matches);
   return decision;
@@ -304,8 +311,7 @@ export async function runTriage(
   const orderContext = orderId ? await fetchOrder(orderId) : null;
   const matches = await retrievePolicies(query, 8);
   const policyVersionConflicts = findPolicyVersionConflicts(matches);
-  const forcedDecisionType: DecisionType | undefined =
-    policyVersionConflicts.length > 0 ? "contradiction" : undefined;
+  const forcedDecisionType = forcedDecisionForPolicyVersionConflicts(policyVersionConflicts);
 
   const decision: TriageDecision = !matches.length ? {
       decision_type: "escalate",

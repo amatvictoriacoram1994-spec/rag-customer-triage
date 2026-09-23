@@ -10,7 +10,9 @@ Each section is stored as one row in `public.policy_chunks`. Its deterministic `
 
 At runtime, the customer query is embedded with the same model and dimension but with `input_type: query`. The query vector is passed to `public.match_policy_chunks`, which ranks stored chunks by pgvector cosine distance and returns the closest sections with provenance and similarity.
 
-Retrieval supplies evidence; it does not make a final support decision. A later n8n workflow can pass the retrieved policy sections and ticket context to Claude, require citations to returned chunks, and route ambiguous, conflicting, or high-risk cases for human review.
+Retrieval supplies evidence; it does not make a final support decision. The runtime triage layer passes retrieved policy sections and verified order context to Claude, requires citations to returned chunks, and routes ambiguous, conflicting, or high-risk cases for human review.
+
+Before Claude is called, a deterministic evidence gate checks retrieved chunks for multiple versions of the same document section (same `document_id` plus `section_number`). If conflicting versions are present, the system forces `decision_type = contradiction`. Claude may explain that contradiction, but it cannot override it: any model output with a different decision type is rejected locally before the response is accepted.
 
 ## Customer and case flow
 
@@ -55,5 +57,7 @@ No email, phone, WhatsApp, Gorgias, Zendesk, Shopify, or other omnichannel conne
 - The embedding model, dimension, and document/query input types must stay aligned.
 - Secrets belong in environment variables; `.env` is ignored by Git.
 - The RPC returns ranked evidence without imposing an unvalidated similarity threshold.
+- Multiple versions of the same retrieved policy section trigger a deterministic contradiction constraint before the model runs.
+- Model output that violates a deterministic evidence constraint is rejected locally rather than accepted as a valid triage decision.
 - Customer identity and case matching happen before RAG and never rely on model judgment.
 - A request ID is technical trace context and is not inserted into customer-facing drafts.

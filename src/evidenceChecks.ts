@@ -7,6 +7,8 @@ export interface PolicyVersionConflict {
   matches: PolicyMatch[];
 }
 
+export type EvidenceConstraintDecision = "contradiction";
+
 export function findPolicyVersionConflicts(
   matches: PolicyMatch[],
 ): PolicyVersionConflict[] {
@@ -35,4 +37,21 @@ export function findPolicyVersionConflicts(
   }
 
   return conflicts;
+}
+
+export function forcedDecisionForPolicyVersionConflicts(
+  conflicts: PolicyVersionConflict[],
+): EvidenceConstraintDecision | undefined {
+  return conflicts.length > 0 ? "contradiction" : undefined;
+}
+
+export function assertDecisionMatchesEvidenceConstraint(
+  decisionType: string,
+  forcedDecisionType?: EvidenceConstraintDecision,
+): void {
+  if (forcedDecisionType && decisionType !== forcedDecisionType) {
+    throw new Error(
+      `Claude violated deterministic evidence constraint: expected decision_type ${forcedDecisionType}, received ${decisionType}`,
+    );
+  }
 }

@@ -14,7 +14,7 @@
     "start": "tsx src/server.ts",
     "test:api": "tsx src/testApi.ts",
     "build": "tsc",
-    "test": "npm run build && node --test dist/server.test.js dist/caseManagement.test.js",
+    "test": "npm run build && node --test dist/server.test.js dist/caseManagement.test.js dist/evidenceChecks.test.js",
     "test:cases": "npm run build && node --test dist/caseManagement.test.js",
     "test:cases:live": "npm run build && node dist/testCasesLive.js",
     "test:server": "npm run build && node --test dist/server.test.js",

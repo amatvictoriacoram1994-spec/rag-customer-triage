@@ -2,8 +2,10 @@ import { createClient } from "@supabase/supabase-js";
 import { createEmbeddings } from "./voyage.js";
 
 export interface PolicyMatch {
+  document_id: string;
   document_title: string;
   document_version: string;
+  effective_date: string | null;
   section_number: number;
   section_title: string;
   content: string;

@@ -41,3 +41,10 @@ npm run typecheck
 ```
 
 See [`docs/architecture.md`](docs/architecture.md) for the ingestion/runtime boundary.
+
+
+## Reliability guardrails
+
+Runtime triage now includes a deterministic policy-version conflict gate. When retrieval returns multiple versions of the same document section (same `document_id` and `section_number`), the system forces a `contradiction` decision before the LLM runs. Claude may explain the conflict, but any model output that tries to override the forced decision is rejected locally.
+
+This keeps policy conflict detection in code rather than relying on model judgment.
